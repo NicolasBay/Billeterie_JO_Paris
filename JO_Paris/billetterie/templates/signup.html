@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" charset="UTF-8">
+    <title>Inscription</title>
+</head>
+<body>
+    <h2>Formulaire d'inscription</h2>
+    <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}  <!-- Affiche le formulaire avec les champs stylisés sous forme de paragraphes -->
+        <button type="submit">S'inscrire</button>
+    </form>
+</body>
+</html>

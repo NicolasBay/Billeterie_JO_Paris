@@ -24,7 +24,7 @@ SECRET_KEY = 'django-insecure-ws50n-n5h^$h5!*8bo981qc@(*ty7vh@zvf+%4m60kw@969=$5
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['127.0.0.1']
 
 
 # Application definition
@@ -57,7 +57,9 @@ ROOT_URLCONF = 'JO_Paris.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR, 'JO_Paris/templates'],
+        'DIRS': [
+            # os.path.join(BASE_DIR, 'templates'),
+            ],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -114,6 +116,10 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 
+LOGIN_URL = 'login'  # URL de connexion
+LOGIN_REDIRECT_URL = 'home'  # URL vers laquelle rediriger après la connexion
+LOGOUT_REDIRECT_URL = 'login'  # URL vers laquelle rediriger après la déconnexion
+
 # Internationalization
 # https://docs.djangoproject.com/en/5.1/topics/i18n/
 
@@ -129,7 +135,10 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
+STATIC_DIRS = [
+    BASE_DIR / 'static',
+]
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field

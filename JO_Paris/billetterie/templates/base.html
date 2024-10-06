@@ -1,0 +1,33 @@
+{% load static %}
+
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Titre de la page{% endblock %}</title>
+    <link rel="stylesheet" href="{% static 'css/style.css' %}"> <!-- Lien vers ton fichier CSS -->
+</head>
+<body>
+    <header>
+        <nav>
+            <ul>
+                <li><a href="{% url 'signup' %}">Inscription</a></li>
+                <li><a href="{% url 'login' %}">Connexion</a></li>
+                <li><a href="{% url 'home' %}">Accueil</a></li>
+            </ul>
+        </nav>
+    </header>
+    
+    <main>
+        {% block content %}
+        <!-- Contenu spécifique à chaque page ici -->
+        {% endblock %}
+    </main>
+    
+    <footer>
+        <p>&copy; 2024 Billetterie JO Paris</p>
+    </footer>
+</body>
+</html>

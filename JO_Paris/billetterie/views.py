@@ -1,6 +1,7 @@
 from django.shortcuts import render, redirect
 from django.contrib.auth import login
 from django.contrib.auth.views import LoginView
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.urls import reverse_lazy
 from .forms import SignupForm
 from django.views import View
@@ -48,7 +49,6 @@ class HomeView(TemplateView):
 
 class CustomLoginView(View):
     template_name = 'billetterie/login.html'
-   
     def get(self, request):
         return render(request, self.template_name)
     
@@ -71,6 +71,19 @@ class CustomLoginView(View):
         else:
             return render(request, self.template_name, {'error': 'Identifiants invalides'})
         
-
         
+class PanierView(View):
+    template_name = 'billetterie/panier.html'
+    def get(self, request):
+        # Ici, tu peux récupérer les données du panier (par exemple, depuis la session ou la base de données)
+        # Pour l'instant, on retourne simplement le template
+        return render(request, self.template_name)
+
+
+class ProfilView(LoginRequiredMixin, View):
+    template_name = 'billetterie/profil.html'
+    def get(self, request):
+        # Ici, tu peux récupérer les données du profil (par exemple, depuis la session ou la base de données)
+        user = request.user
+        return render(request, self.template_name, {'user':user})
 

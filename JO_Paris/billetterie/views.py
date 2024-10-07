@@ -15,7 +15,7 @@ import os
 class SignupView(View):
     def get(self, request):
         form = SignupForm()
-        return render(request, 'billetterie/signup.html', {'form': form})
+        return render(request, 'billetterie/login/signup.html', {'form': form})
 
     def post(self, request):
         form = SignupForm(request.POST)
@@ -23,7 +23,7 @@ class SignupView(View):
             utilisateur = form.save()
             login(request, utilisateur)
             return redirect('home')
-        return render(request, 'billetterie/signup.html', {'form': form})
+        return render(request, 'billetterie/login/signup.html', {'form': form})
 
     
 
@@ -75,15 +75,15 @@ class CustomLoginView(View):
 class PanierView(View):
     template_name = 'billetterie/panier.html'
     def get(self, request):
-        # Ici, tu peux récupérer les données du panier (par exemple, depuis la session ou la base de données)
-        # Pour l'instant, on retourne simplement le template
+        # Ici, je peux récupérer les données du panier (par exemple, depuis la session ou la base de données)
+        # Pour l'instant, je retourne simplement le template
         return render(request, self.template_name)
 
 
 class ProfilView(LoginRequiredMixin, View):
     template_name = 'billetterie/profil.html'
     def get(self, request):
-        # Ici, tu peux récupérer les données du profil (par exemple, depuis la session ou la base de données)
+        # Ici, je peux récupérer les données du profil (par exemple, depuis la session ou la base de données)
         user = request.user
         return render(request, self.template_name, {'user':user})
 

@@ -6,36 +6,59 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Billetterie JO Paris{% endblock %}</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css">
+    <style>
+        .nav-button {
+            background-color: #FFFFFF; /* Couleur jaune JO */
+            color: #000; /* Couleur du texte noir */
+            border-radius: 10px; /* Bordures arrondies */
+            font-weight: bold; /* Texte en gras */
+            padding: 5px 10px; /* Espacement interne pour un meilleur look */
+            flex-grow: 1; /* Permet au bouton de prendre toute la largeur disponible */
+            min-width: 150px; /* Largeur minimale pour les boutons */
+            text-align: center; 
+            margin-right: 10px;
+            margin-left: 10px;
+        }
+        .nav-button:hover {
+            background-color: #D5C178; /* Couleur au survol */
+            color: #FFFFFF; Couleur du texte au survol
+        }
+        .nav-button.active {
+            display: none; /* Masquer le bouton actif */
+        }
+
+    </style>
 </head>
 <body>
 
     <!-- Header -->
-    <header class="bg-primary text-white py-3">
-        <div class="container d-flex justify-content-between align-items-center">
-            <a href="{% url 'home' %}" class="navbar-brand">
-                <img src="{% static 'img/parislogo.png' %}" alt="Logo JO Paris" height="50">
-            </a>
-            <nav class="navbar navbar-expand-lg">
-                <div class="collapse navbar-collapse">
-                    <ul class="navbar-nav me-auto">
+    <header class="bg-dark text-white py-3">
+        <div class="container d-flex align-items-center justify-content-between">
+            <div class="d-flex align-items-center">
+                <a href="{% url 'home' %}" class="navbar-brand">
+                    <img src="{% static 'img/anneaux_olympiques.png' %}" alt="Logo JO Paris" height="75">
+                </a>
+                <h1 class="ms-3 mb-0">JO PARIS 2024</h1>
+            </div>
+
+            <!-- Navigation Menu -->
+            <nav class="navbar navbar-expand-lg navbar-dark">
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse justify-content-end" id="navbarNav">
+                    <ul class="navbar-nav">
                         <li class="nav-item">
-                            <a href="{% url 'home' %}" class="nav-link text-white">Accueil</a>
+                            <a class="nav-link nav-button {% if request.path == '/panier/' %}active{% endif %}" href="{% url 'panier' %}">RESERVER UN BILLET</a>
                         </li>
                         <li class="nav-item">
-                            <a href="{% url 'signup' %}" class="nav-link text-white">Inscription</a>
-                        </li>
-                        <li class="nav-item">
-                            <a href="{% url 'login' %}" class="nav-link text-white">Connexion</a>
+                            <a class="nav-link nav-button {% if request.path == '/login/' %}active{% endif %}" href="{% url 'login' %}">SE CONNECTER</a>
                         </li>
                     </ul>
                 </div>
             </nav>
-            <div class="d-flex">
-                <a href="{% url 'panier' %}" class="btn btn-warning me-2">Mon Panier</a>
-                <a href="{% url 'profil' %}" class="btn btn-light">Mon Profil</a>
-            </div>
         </div>
     </header>
 
@@ -57,9 +80,9 @@
                 <a href="#" class="text-white">Conditions d'utilisation</a>
             </div>
             <div>
-                <img src="{% static 'img/fblogo.webp' %}" alt="Logo Facebook" height="30">
-                <img src="{% static 'img/xlogo.webp' %}" alt="Logo X" height="30">
-                <img src="{% static 'img/instalogo.webp' %}" alt="Logo Instagram" height="30">
+                <img src="{% static 'img/fblogo.webp' %}" alt="Logo Facebook" height="40">
+                <img src="{% static 'img/xlogo.webp' %}" alt="Logo X" height="40">
+                <img src="{% static 'img/instalogo.webp' %}" alt="Logo Instagram" height="40">
             </div>
         </div>
     </footer>

@@ -1,0 +1,28 @@
+.nav-button-login {
+    background-color: #FFFFFF; /* Couleur jaune JO */
+    color: #000; /* Couleur du texte noir */
+    border-radius: 15px; /* Bordures arrondies */
+    font-weight: bold; /* Texte en gras */
+    padding: 5px 10px; /* Espacement interne pour un meilleur look */
+}
+.nav-button-login:hover {
+    background-color: #D5C178; /* Couleur au survol */
+    color: #FFFFFF; /* Couleur du texte au survol */
+}
+.nav-button-login.active {
+    display: none; /* Masquer le bouton actif */
+}
+.nav-button-login {
+    background-color: #FFFFFF; /* Couleur jaune JO */
+    color: #000; /* Couleur du texte noir */
+    border-radius: 15px; /* Bordures arrondies */
+    font-weight: bold; /* Texte en gras */
+    padding: 5px 10px; /* Espacement interne pour un meilleur look */
+}
+.nav-button-login:hover {
+    background-color: #D5C178; /* Couleur au survol */
+    color: #FFFFFF; /* Couleur du texte au survol */
+}
+.nav-button-login.active {
+    display: none; /* Masquer le bouton actif */
+}

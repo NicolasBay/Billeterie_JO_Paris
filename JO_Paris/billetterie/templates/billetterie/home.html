@@ -1,7 +1,17 @@
 {% extends 'base.html' %}
-
+{% load static %}
 {% block content %}
 
-    <h1>Bienvenue sur la page d'accueil!</h1>
+<div class="position-relative">
+    <!-- Image en arrière-plan -->
+    <img src="{% static 'img/homeJO.jpg' %}" alt="Image d'accueil" class="img-fluid w-100">
+
+    <!-- Texte superposé en haut de l'image, centré, blanc et gras -->
+    <div class="position-absolute top-0 start-50 translate-middle-x  w-100 p-2">
+        <h1 class="text-center text-black fw-bold">BILLETTERIE OFFICIELLE DES JEUX OLYMPIQUES</h1>
+    </div>
+</div>
 
 {% endblock %}
+
+<!-- text-white bg-dark bg-opacity-50 -->

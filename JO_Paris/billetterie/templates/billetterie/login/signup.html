@@ -1,0 +1,62 @@
+{% extends 'base.html' %}
+
+{% block title %}Inscription{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row">
+        <!-- Formulaire d'inscription -->
+        <div class="col-md-6">
+            <h1 class="mb-4">Inscription</h1>
+
+            <form method="post" class="needs-validation" novalidate>
+                {% csrf_token %}
+                
+                <!-- Boucle pour afficher chaque champ du formulaire -->
+                {% for field in form %}
+                    <div class="mb-3 row">
+                        <label for="{{ field.id_for_label }}" class="col-sm-4 col-form-label">{{ field.label }}</label>
+                        <div class="col-sm-8">
+                            {{ field }}
+                            <div class="invalid-feedback">
+                                {% for error in field.errors %}
+                                    <p>{{ error }}</p>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+                
+                <!-- Bouton d'inscription -->
+                <button type="submit" class="btn btn-success w-100">S'inscrire</button>
+            </form>
+
+            <!-- Gestion des erreurs globales -->
+            {% if form.errors %}
+                <div class="alert alert-danger mt-3">
+                    <strong>Veuillez corriger les erreurs suivantes :</strong>
+                    <ul>
+                        {% for field in form %}
+                            {% if field.errors %}
+                                <li>{{ field.label }} : {{ field.errors|join:", " }}</li>
+                            {% endif %}
+                        {% endfor %}
+                        {% for error in form.non_field_errors %}
+                            <li>{{ error }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Section à droite avec bouton vers la connexion -->
+        <div class="col-md-6 d-flex flex-column align-items-center justify-content-center">
+            <div class="text-center ">
+                <h2 class="mb-3">Déjà un compte ?</h2>
+                <p class="mb-4">Connectez-vous dès maintenant pour accéder à votre espace.</p>
+                <a href="{% url 'login' %}" class="btn btn-outline-success w-50">Se connecter</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+
+{% block title %}Réserver un Billet - JO Paris 2024{% endblock %}
+
+{% block content %}
+    <!-- Offres Section -->
+    <section class="container my-5">
+        <h2 class="text-center mb-5">Choisissez votre Offre</h2>
+        <div class="row">
+            {% for ticket in tickets %}
+            <div class="col-md-4">
+                <div class="card ticket-card text-center shadow-lg" style="height: 100%;">
+                    <div class="card-header {% if ticket.name == 'SOLO' %}bg-solo text-white{% elif ticket.name == 'DUO' %}bg-duo text-white{% elif ticket.name == 'FAMILLE' %}bg-famille text-white{% endif %}">
+                        {{ ticket.get_name_display }}
+                    </div>
+                    <div class="card-body d-flex flex-column justify-content-between">
+                        <h5 class="card-title">{{ ticket.available_tickets }} Personnes</h5>
+                        <p class="card-text">{{ ticket.description }}</p>
+                        <p class="price h3 {% if ticket.name == 'SOLO' %}text-success{% elif ticket.name == 'DUO' %}text-primary{% elif ticket.name == 'FAMILLE' %}text-warning{% endif %}">
+                            {{ ticket.price }}€
+                        </p>
+                        <a href="{% url 'panier' ticket.id %}" class="btn {% if ticket.name == 'SOLO' %}btn-success{% elif ticket.name == 'DUO' %}btn-primary{% elif ticket.name == 'FAMILLE' %}btn-warning{% endif %}">
+                            Réserver
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+{% endblock %}

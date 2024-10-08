@@ -1,14 +1,15 @@
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import login
 from django.contrib.auth.views import LoginView
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.urls import reverse_lazy
-from .forms import SignupForm
 from django.views import View
-from django.views.generic import TemplateView
+from django.views.generic import TemplateView, ListView
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from rest_framework.response import Response
 from rest_framework import status
+from .forms import SignupForm
+from .models import Ticket
 import os
 
 
@@ -74,10 +75,11 @@ class CustomLoginView(View):
         
 class PanierView(View):
     template_name = 'billetterie/panier.html'
-    def get(self, request):
+    def get(self, request, ticket_id):
         # Ici, je peux récupérer les données du panier (par exemple, depuis la session ou la base de données)
+        ticket = get_object_or_404(Ticket, id=ticket_id)
         # Pour l'instant, je retourne simplement le template
-        return render(request, self.template_name)
+        return render(request, self.template_name, {'ticket': ticket})
 
 
 class ProfilView(LoginRequiredMixin, View):
@@ -86,4 +88,14 @@ class ProfilView(LoginRequiredMixin, View):
         # Ici, je peux récupérer les données du profil (par exemple, depuis la session ou la base de données)
         user = request.user
         return render(request, self.template_name, {'user':user})
+    
+
+class BilletView(ListView):
+    model = Ticket
+    template_name = 'billetterie/reserver-billet.html'
+    context_object_name = 'tickets' # Le nom du contexte pour accéder aux tickets dans le template
+    
+    def get_queryset(self):
+        # Si tu veux personnaliser le queryset (par ex. filtrer ou ordonner), tu peux le faire ici
+        return Ticket.objects.all().order_by('price')  # Exemple d'ordre par prix
 

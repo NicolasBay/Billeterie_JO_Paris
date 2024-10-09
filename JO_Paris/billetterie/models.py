@@ -2,14 +2,43 @@ from typing import Iterable
 from django.db import models
 from django.conf import settings
 from django.utils import timezone
-from django.contrib.auth.models import AbstractUser # AbstractUser = classe par défaut pour gérer les utilisateurs
+from django.contrib.auth.models import AbstractUser, BaseUserManager # AbstractUser = classe par défaut pour gérer les utilisateurs
 from django.utils.crypto import get_random_string # pour générer des chaînes de caractères aléatoires
 
+
+# Gestionnaire d'Utilisateur Personnalisé
+
+class UtilisateurManager(BaseUserManager):
+    def create_user(self, email, password=None, **extra_fields):
+        if not email:
+            raise ValueError("L'email doit etre renseigné.")
+        email = self.normalize_email(email)
+        user = self.model(email=email, **extra_fields)
+        user.set_password(password)
+        user.save(using=self._db)
+        return user
+
+    def create_superuser(self, email, password=None, **extra_fields):
+        extra_fields.setdefault('is_staff', True)
+        extra_fields.setdefault('is_superuser', True)
+
+        if extra_fields.get('is_staff') is not True:
+            raise ValueError('Le superutilisateur doit avoir is_staff=True')
+        if extra_fields.get('is_superuser') is not True:
+            raise ValueError ('Le superutilisateur doit avoir is_superuser=True')
+        
+        return self.create_user(email, password, **extra_fields)
+    
 
 # Modèle utilisateur personnalisé
 
 class Utilisateur(AbstractUser):
+    objects = UtilisateurManager()
     unique_key = models.CharField(max_length=32, unique=True, editable=False)
+    username = None
+    email = models.EmailField(unique=True)
+    USERNAME_FIELD = 'email' # Dénitit l'email comme champ principal pour l'authentification
+    REQUIRED_FIELDS = [] # ne mets pas 'email' dans les champs requis supplémentaires
     """
     En héritant de AbstractUser, j'obtiens déjà les champs standards (comme username, password, etc.) 
     sans avoir besoin de redéfinir ces champs dans le modèle.
@@ -22,7 +51,6 @@ class Utilisateur(AbstractUser):
     def __str__(self): # Cette méthode définit la représentation en chaîne de caractères de l’objet.    
         return self.email # Ici, elle retourne l’adresse email de l’utilisateur, utile pour l’affichage dans l’interface d’administration de Django
     
-
 
 # Modèle des offres de tickets
 

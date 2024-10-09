@@ -1,7 +1,10 @@
 from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib import messages
 from django.contrib.auth import login
 from django.contrib.auth.views import LoginView
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth.decorators import login_required
+from django.utils.decorators import method_decorator
 from django.urls import reverse_lazy
 from django.views import View
 from django.views.generic import TemplateView, ListView
@@ -23,6 +26,7 @@ class SignupView(View):
         if form.is_valid():
             utilisateur = form.save()
             login(request, utilisateur)
+            messages.success(request, 'Votre compte a été créé avec succès.')
             return redirect('home')
         return render(request, 'billetterie/login/signup.html', {'form': form})
 
@@ -50,29 +54,37 @@ class HomeView(TemplateView):
 
 class CustomLoginView(View):
     template_name = 'billetterie/login.html'
-    def get(self, request):
-        return render(request, self.template_name)
-    
+   
     def post(self, request):
-        username = request.POST.get('username')
+        email = request.POST.get('email')
         password = request.POST.get('password')
 
-        if not username or not password:
+        if not email or not password:
             return render(request, self.template_name, {'error': 'Veuillez remplir tous les champs'})
 
         token_view = TokenObtainPairView.as_view()
-        data = {'username': username, 'password': password}
-        response = token_view(request._request, data=data)
+        data = {'email': email, 'password': password}
+        response = token_view(request, data=data)
 
         if response.status_code == status.HTTP_200_OK:
             token_data = response.data
             request.session['access'] = token_data['access']
             request.session['refresh'] = token_data['refresh']
-            return redirect('home')
+            messages.success(request, 'Vous êtes maintenant connecté.')
+            # return redirect(request.GET.get('next') or 'home')
+            return redirect('billet')
         else:
             return render(request, self.template_name, {'error': 'Identifiants invalides'})
         
+    def get(self, request):
+        # vérifie si l'utilisateur a été redirigé avec un paramère 'next'
+        # next_url = request.GET.get('next')
+        # if next_url:
+        # messages.info(request, "Pour réserver un billet, merci de vous connecter.")
+        # print("Redirection vers la page de connexion avec next =", next_url) # Message de debogage
+        return render(request, self.template_name)
         
+     
 class PanierView(View):
     template_name = 'billetterie/panier.html'
     def get(self, request, ticket_id):
@@ -90,12 +102,45 @@ class ProfilView(LoginRequiredMixin, View):
         return render(request, self.template_name, {'user':user})
     
 
+# @method_decorator(login_required, name='dispatch')
 class BilletView(ListView):
     model = Ticket
     template_name = 'billetterie/reserver-billet.html'
     context_object_name = 'tickets' # Le nom du contexte pour accéder aux tickets dans le template
     
     def get_queryset(self):
-        # Si tu veux personnaliser le queryset (par ex. filtrer ou ordonner), tu peux le faire ici
-        return Ticket.objects.all().order_by('price')  # Exemple d'ordre par prix
+        # Personnalisation du queryset (par ex. filtrer ou ordonner)
+        return Ticket.objects.all().order_by('price')
+    
+    
+    def post(self, request, *args, **kwargs):
+        # Vérifie si l'utilisateur est connecté
+        if not request.user.is_authenticated:
+            messages.warning(request, "Vous devez être connecté pour réserver un billet.")
+            return redirect('login') # Redirige vers la page de connexion
 
+
+        # Récupération de l'ID du ticket depuis la requete POST
+        ticket_id = request.POST.get('ticket_id')
+        if not ticket_id:
+            return redirect('billet')
+        
+        ticket = get_object_or_404(Ticket, id=ticket_id)
+
+        # Ajout du ticket au panier de l'utilisateur
+        panier = request.session.get('panier', [])
+        panier.append(ticket.id)
+        request.session['panier'] = panier
+
+        # Redirige vers le panier ou une autre page après l'ajout
+        return redirect('panier', ticket_id=ticket.id)
+    
+    def get(self, request, *args, **kwargs):
+        if request.user.is_authenticated:
+            print("Utilisateur authentifié : ", request.user.email)  # Message de débogage
+        else:
+            print("Utilisateur non authentifié")
+        return super().get(request, *args, **kwargs)
+    
+    def billet_view(request):
+        print(f"User authenticated: {request.user.is_authenticated}")

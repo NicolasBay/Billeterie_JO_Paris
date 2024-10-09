@@ -93,8 +93,7 @@ DATABASES = {
     }
 }
 
-# Modèle utilisateur personnalisé
-
+# Indique que le modèle Utilisateur est le modèle d'utilisateur par défaut
 AUTH_USER_MODEL = 'billetterie.Utilisateur'
 
 # Password validation
@@ -167,3 +166,9 @@ SIMPLE_JWT = {
     'SIGNING_KEY': 'your-secret-signing-key',
     'AUTH_HEADER_TYPES': ('Bearer',),
 }
+
+
+# Gestion des sessions
+SESSION_COOKIE_AGE = 1209600 # Durée de la session en secondes (ici 2 semaines)
+SESSION_EXPIRE_AT_BROWSER_CLOSE = False
+SESSION_COOKIE_SECURE = False # Mettre à True si HTTPS

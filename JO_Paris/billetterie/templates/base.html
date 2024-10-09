@@ -7,6 +7,18 @@
     <title>{% block title %}Billetterie JO Paris{% endblock %}</title>
     <link rel="stylesheet" href="{% static 'css/style.css' %}?v=1.0">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css">
+    <style>
+        .btn-custom {
+            background-color: #D5C178; /* Couleur de fond par défaut */
+            color: black; /* Couleur du texte par défaut */
+            font-weight: bold;
+        }
+
+        .btn-custom:hover {
+            background-color: #C0A96B; /* Couleur de fond lors du survol */
+            color: white; /* Couleur du texte lors du survol */
+        }
+    </style>
 </head>
 <body>
 
@@ -28,11 +40,20 @@
                 <div class="collapse navbar-collapse justify-content-end" id="navbarNav">
                     <ul class="navbar-nav">
                         <li class="nav-item">
-                            <a class="nav-link nav-button {% if request.path == '/reserver-billet/' %}active{% endif %}" href="{% url 'billet' %}">RESERVER UN BILLET</a>
+                            <a class="nav-link btn btn-custom text-white fw-bold mx-2 {% if request.path == '/reserver-billet/' %}active{% endif %}" href="{% url 'billet' %}">RESERVER UN BILLET</a>
                         </li>
+                    {% if user.is_authenticated %}
+                        <li>
+                            <form action="{% url 'deconnexion' %}" method="post" style="display: inline;">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-danger">Déconnexion</button>
+                            </form>
+                        </li>
+                    {% else %}
                         <li class="nav-item">
-                            <a class="nav-link nav-button {% if request.path == '/login/' %}active{% endif %}" href="{% url 'login' %}">SE CONNECTER</a>
+                            <a class="nav-link btn btn-success text-white fw-bold mx-2 {% if request.path == '/login/' %}active{% endif %}" href="{% url 'login' %}">SE CONNECTER</a>
                         </li>
+                    {% endif %}
                     </ul>
                 </div>
             </nav>
@@ -43,6 +64,20 @@
     <main class="container py-5">
         {% block content %}
         <!-- Contenu spécifique à chaque page -->
+            {% if messages %}
+                <div class="alert alert-info">
+                    {% for message in messages %}
+                        <div>{{ message }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+            <!-- Debug: Afficher l'état de l'authentification -->
+            {% if user.is_authenticated %}
+                <div class="alert alert-success">Vous êtes connecté en tant que {{ user.username }}.</div>
+            {% else %}
+                <div class="alert alert-danger">Vous n'êtes pas connecté.</div>
+            {% endif %}
         {% endblock %}
     </main>
 

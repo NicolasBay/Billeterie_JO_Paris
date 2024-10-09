@@ -14,8 +14,8 @@
                         
                         <!-- Champ nom d'utilisateur -->
                         <div class="mb-3">
-                            <label for="username" class="form-label">Nom d'utilisateur :</label>
-                            <input type="text" class="form-control" id="username" name="username" placeholder="Votre nom d'utilisateur" required>
+                            <label for="email" class="form-label">Email :</label>
+                            <input type="text" class="form-control" id="email" name="email" placeholder="Votre nom d'utilisateur" required>
                         </div>
 
                         <!-- Champ mot de passe -->
@@ -44,4 +44,11 @@
             </div>
         </div>
     </div>
+    <!-- {% if messages %}
+        <div class="alert alert-info">
+            {% for message in messages %}
+                <div>{{ message }}</div>
+            {% endfor %}
+        </div>
+    {% endif %} -->
 {% endblock %}

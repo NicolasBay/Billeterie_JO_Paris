@@ -8,13 +8,13 @@ class SignupForm(forms.ModelForm):
 
     class Meta:
         model = Utilisateur  # Utiliser le modèle Utilisateur
-        fields = ['username', 'email', 'first_name', 'last_name']  # Inclure les champs requis
+        fields = ['email', 'email', 'first_name', 'last_name']  # Inclure les champs requis
 
     def clean_username(self):
-        username = self.cleaned_data['username']
-        if Utilisateur.objects.filter(username=username).exists():
+        email = self.cleaned_data['email']
+        if Utilisateur.objects.filter(email=email).exists():
             raise ValidationError("Un utilisateur avec ce nom d'utilisateur existe déjà.")
-        return username
+        return email
 
     def clean_email(self):
         email = self.cleaned_data['email']

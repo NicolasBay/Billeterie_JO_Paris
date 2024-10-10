@@ -6,8 +6,18 @@
             <!-- Formulaire de connexion -->
             <div class="col-md-6">
                 <header>
-                    <h1 class="mb-4">Connexion</h1>
+                    <h1 class="mb-4">Veuillez vous connecter</h1>
                 </header>
+
+                <!--Bloc pour afficher les messages -->
+                {% if messages %}
+                    <div class="alert alert-info">
+                        {% for message in messages %}
+                            <div>{{ message }}</div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+
                 <main>
                     <form method="post" action="{% url 'login' %}">
                         {% csrf_token %}
@@ -30,7 +40,7 @@
 
                     {% if error %}
                     <div class="alert alert-danger mt-3">{{ error }}</div>
-                    {% endif %}
+                    {% endif %}                   
                 </main>
             </div>
 
@@ -44,11 +54,4 @@
             </div>
         </div>
     </div>
-    <!-- {% if messages %}
-        <div class="alert alert-info">
-            {% for message in messages %}
-                <div>{{ message }}</div>
-            {% endfor %}
-        </div>
-    {% endif %} -->
 {% endblock %}

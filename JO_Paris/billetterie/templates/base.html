@@ -7,6 +7,7 @@
     <title>{% block title %}Billetterie JO Paris{% endblock %}</title>
     <link rel="stylesheet" href="{% static 'css/style.css' %}?v=1.0">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
         .btn-custom {
             background-color: #D5C178; /* Couleur de fond par défaut */
@@ -39,21 +40,32 @@
                 </button>
                 <div class="collapse navbar-collapse justify-content-end" id="navbarNav">
                     <ul class="navbar-nav">
-                        <li class="nav-item">
-                            <a class="nav-link btn btn-custom text-white fw-bold mx-2 {% if request.path == '/reserver-billet/' %}active{% endif %}" href="{% url 'billet' %}">RESERVER UN BILLET</a>
+                        <li class="nav-item flex-fill mx-2">
+                            <a class="nav-link btn btn-custom text-white fw-bold {% if request.path == '/reserver-billet/' %}active{% endif %}" href="{% url 'billet' %}">RESERVER UN BILLET</a>
                         </li>
                     {% if user.is_authenticated %}
-                        <li>
-                            <form action="{% url 'deconnexion' %}" method="post" style="display: inline;">
+                        <li class="nav-item flex-fill mx-2">
+                            <form action="{% url 'logout' %}" method="post" style="display: inline;">
                                 {% csrf_token %}
-                                <button type="submit" class="btn btn-danger">Déconnexion</button>
+                                <!-- <button type="submit" class="nav-link btn btn-danger text-white fw-bold">Déconnexion</button> -->
+                                <a class="nav-link btn btn-danger text-white fw-bold" href="{% url 'logout' %}">Déconnexion</a>
                             </form>
                         </li>
                     {% else %}
-                        <li class="nav-item">
-                            <a class="nav-link btn btn-success text-white fw-bold mx-2 {% if request.path == '/login/' %}active{% endif %}" href="{% url 'login' %}">SE CONNECTER</a>
+                        <li class="nav-item flex-fill mx-2">
+                            <a class="nav-link btn btn-success text-white fw-bold {% if request.path == '/login/' %}active{% endif %}" href="{% url 'login' %}">SE CONNECTER</a>
                         </li>
                     {% endif %}
+                        <li class="nav-item flex-fill mx-2">
+                            <a class="nav-link text-white" href="{% url 'panier' %}">
+                                <i class="fas fa-shopping-cart"></i> <!-- Icône de panier -->
+                                Panier
+                                <!-- Affichage du nombre d'articles dans le panier, optionnel -->
+                                <span class="badge bg-secondary">
+                                    {{ request.session.panier|length }} <!-- Nombre d'articles dans le panier -->
+                                </span>
+                            </a>
+                        </li>
                     </ul>
                 </div>
             </nav>

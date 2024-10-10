@@ -47,8 +47,7 @@
                         <li class="nav-item flex-fill mx-2">
                             <form action="{% url 'logout' %}" method="post" style="display: inline;">
                                 {% csrf_token %}
-                                <!-- <button type="submit" class="nav-link btn btn-danger text-white fw-bold">Déconnexion</button> -->
-                                <a class="nav-link btn btn-danger text-white fw-bold" href="{% url 'logout' %}">Déconnexion</a>
+                                <button type="submit" class="nav-link btn btn-danger text-white fw-bold">Déconnexion</button>
                             </form>
                         </li>
                     {% else %}

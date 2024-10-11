@@ -5,14 +5,16 @@ from django.contrib.auth.views import LoginView
 from django.contrib.auth.mixins import LoginRequiredMixin # garantit que la vue est protégée par la vérification de l'authentification
 from django.contrib.auth.decorators import login_required
 from django.utils.decorators import method_decorator
-from django.urls import reverse_lazy
+from django.utils.http import url_has_allowed_host_and_scheme
+from django.http import HttpResponse, HttpResponseRedirect
+from django.urls import reverse_lazy, reverse
 from django.views import View
-from django.views.generic import TemplateView, ListView
+from django.views.generic import TemplateView, ListView, FormView
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from rest_framework.response import Response
 from rest_framework import status
-from .forms import SignupForm
-from .models import Ticket
+from .forms import SignupForm, AjouterAuPanierForm
+from .models import Ticket, Transaction
 import os
 
 
@@ -101,31 +103,88 @@ class LogoutView(LoginRequiredMixin, View):
 class PanierView(ListView):
     model = Ticket
     template_name = 'billetterie/panier.html'
-    context_object_name = 'tickets' # Nom utilisé pour accéder aux objets dans le template
+    context_object_name = 'tickets'
 
     def get_queryset(self):
-        # Récupère les tickets dans le panier stocké dans la session utilisateur
-        panier = self.request.session.get('panier', [])
+        """Récupère les tickets et quantités du panier stocké dans la session utilisateur"""
+        panier = self.request.session.get('panier', {})
         if panier:
-            return Ticket.objects.filter(id__in=panier)
-        return Ticket.objects.none() # Si le panier est vide, retourne un queryset vide
-    
+            # Récupère les objets Ticket correspondant aux IDs dans le panier
+            tickets_ids = panier.keys()
+            tickets = Ticket.objects.filter(id__in=tickets_ids)
+            # Attache les quantités aux tickets dans le queryset
+            for ticket in tickets:
+                ticket.quantite = panier.get(str(ticket.id), 1)  # Quantité par défaut à 1 si manquant
+            return tickets
+        return Ticket.objects.none()  # Si le panier est vide, retourne un queryset vide
+
+    def get_context_data(self, **kwargs):
+        """Ajoute le total du panier au contexte"""
+        context = super().get_context_data(**kwargs)
+        context['total_panier'] = self.calculer_total_panier()
+        return context
+
     def post(self, request, *args, **kwargs):
-        # Récupération de l'id du ticket à ajouter au panier
+        """Gère les ajouts, mises à jour et suppressions dans le panier"""
         ticket_id = request.POST.get('ticket_id')
         if not ticket_id:
-            return redirect('panier') # redirection si l'id est absent
-        
-        # Vérifie si le ticket existe dans la base de données
-        ticket = get_object_or_404(Ticket, id=ticket_id)
+            return redirect('panier')  # Redirection si l'id est absent
 
-        # Récupère ou initialise  le panier dans la session
-        panier = request.session.get('panier', [])
-        if ticket.id not in panier:
-            panier.append(ticket.id)
-            request.session['panier'] = panier # Met à jour le panier dans la session
+        action = request.POST.get('action')
+        if action == 'supprimer':
+            self.supprimer_du_panier(ticket_id)
+        else:
+            quantite = int(request.POST.get('quantite', 1))  # Quantité par défaut à 1
+            self.ajouter_ou_mettre_a_jour_panier(ticket_id, quantite)
 
-        return redirect('panier') # Redirige vers la page du panier après l'ajout
+        return redirect('panier')  # Redirige vers la page du panier après l'ajout ou la suppression
+
+    def ajouter_ou_mettre_a_jour_panier(self, ticket_id, quantite):
+        """Ajoute ou met à jour un ticket dans le panier"""
+        panier = self.request.session.get('panier', {})
+        if str(ticket_id) in panier:
+            panier[str(ticket_id)] += quantite  # Incrémente la quantité si déjà présent
+        else:
+            panier[str(ticket_id)] = quantite  # Ajoute le ticket avec la quantité
+        self.request.session['panier'] = panier  # Met à jour le panier dans la session
+
+    def supprimer_du_panier(self, ticket_id):
+        """Supprime un ticket du panier"""
+        panier = self.request.session.get('panier', {})
+        if str(ticket_id) in panier:
+            del panier[str(ticket_id)]
+            self.request.session['panier'] = panier  # Met à jour la session
+
+    def calculer_total_panier(self):
+        """Calcule le total du panier en fonction des tickets et quantités"""
+        total_panier = 0
+        panier = self.request.session.get('panier', {})
+        for ticket_id, quantite in panier.items():
+            try:
+                ticket = Ticket.objects.get(id=ticket_id)
+                total_panier += ticket.price * quantite
+            except Ticket.DoesNotExist:
+                continue  # Ignore les tickets qui n'existent pas
+        return total_panier
+
+
+class AjouterAuPanierView(FormView):
+    form_class = AjouterAuPanierForm
+    template_name = 'billetterie/ajouter_au_panier.html'
+
+    def form_valid(self, form):
+        offer = get_object_or_404(Ticket, id=form.cleaned_data['offer_id'])
+        quantity = form.cleaned_data['quantity']
+
+        # Créer ou mettre à jour une transaction pour cet utilisateur
+        transaction = Transaction.objects.create(
+            user=self.request.user,
+            offer=offer,
+            quantity=quantity,
+            total_price=offer.price * quantity,
+            payment_status='PENDING'
+        )
+        return redirect(reverse('afficher_panier')) # Redirection vers la page du panier après ajout
 
 
 
@@ -159,20 +218,37 @@ class BilletView(LoginRequiredMixin, ListView):
         ticket = get_object_or_404(Ticket, id=ticket_id)
 
         # Ajout du ticket au panier de l'utilisateur
-        panier = request.session.get('panier', [])
-        if ticket.id not in panier:    
-            panier.append(ticket.id)
+        panier = request.session.get('panier', {})
+
+        # Vérifie si le panier est bien un dictionnaire
+        if not isinstance(panier, dict):
+            panier = {}
+        
+        # Ajout du ticket au panier avec une quantité de 1 si pas encore dans le panier
+        if str(ticket.id) in panier:    
+            messages.info(request, f"{ticket.nom} est déjà dans votre panier.")
+        else:
+            panier[str(ticket.id)] = 1 # Par défaut, quantité=1 pur un nouvel ajout
             request.session['panier'] = panier
             messages.success(request, f"{ticket.nom} a été ajouté au panier.")
-        else:
-            messages.info(request, f"{ticket.nom} est déjà dans votre panier.")
 
         # Redirige vers le panier ou une autre page après l'ajout
-        return redirect('panier', ticket_id=ticket.id)
+        return redirect('panier')
     
     def get(self, request, *args, **kwargs):
         if not request.user.is_authenticated:
             messages.info(request, "Veuillez vous connecter pour accéder à cette page.")
+
+            # récupération de l'URL de redirection
+            redirect_url = f'{self.login_url}?next={request.path}'
+            # Vérification de l'URL de redirection avec url_has_allowed_host_and_scheme
+            if url_has_allowed_host_and_scheme(redirect_url, allowed_hosts={request.get_host()}):
+                return redirect(redirect_url)
+            else:
+                messages.error(request, "Redirection non autorisée.")
+                return redirect('login')  # Rediriger vers la page de connexion de manière sécurisée
             return redirect(f'{self.login_url}?next={request.path}')
+        
+        # Si l'utilisateur est connecté, procéder normalement
         return super().get(request, *args, **kwargs)
     

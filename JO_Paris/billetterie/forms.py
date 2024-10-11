@@ -37,6 +37,11 @@ class SignupForm(forms.ModelForm):
         if commit:
             utilisateur.save()  # Enregistrer dans la base de données
         return utilisateur
+    
+
+class AjouterAuPanierForm(forms.Form):
+    offer_id = forms.IntegerField(widget=forms.HiddenInput())
+    quantity = forms.IntegerField(min_value=1, initial=1)
 
 
 

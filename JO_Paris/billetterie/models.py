@@ -84,7 +84,7 @@ class Transaction(models.Model):
 
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     offer = models.ForeignKey('Ticket', on_delete=models.CASCADE)
-    quantity = models.PositiveIntegerField
+    quantity = models.PositiveIntegerField(default=1)
     total_price = models.DecimalField(max_digits=8, decimal_places=2)
     transaction_date = models.DateTimeField(default=timezone.now)
     payment_status = models.CharField(max_length=10, choices=PAYMENT_STATUS_CHOICES, default='PENDING')
@@ -101,6 +101,8 @@ class Transaction(models.Model):
         return get_random_string(10).upper()
     
     def save(self, *args, **kwargs):
+        # calcul du prix total en fonction de la quantité
+        self.total_price = self.quantity * self.offer.price
         # Surcharge de la méthode save pour s'assurer que le code de confirmation est unique et généré si le paiement est complété.
         if self.payment_status == 'COMPLETED' and not self.confirmation_code:
             self.generate_confirmation_code = self.generate_unique_confirmation_code()

@@ -1,5 +1,7 @@
 {% extends 'base.html' %}
 
+{% load custom_filters %}
+
 {% block title %}Votre Panier{% endblock %}
 
 {% block content %}
@@ -13,11 +15,27 @@
                     <div>
                         <h5>{{ ticket.get_name_display }}</h5>
                         <p>{{ ticket.description }}</p>
+                        <p>Quantité : {{ ticket.quantite }}</p>
                     </div>
-                    <span class="badge bg-primary rounded-pill">{{ ticket.price }}€</span>
+                    <div>
+                        <span class="badge bg-primary rounded-pill">{{ ticket.price }}€ / unité</span>
+                        <p>Total : {{ ticket.quantite|multiply:ticket.price }}€</p>
+                        <!-- Formulaire pour supprimer un ticket -->
+                        <form method="POST" action="{% url 'panier' %}">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="supprimer">
+                            <input type="hidden" name="ticket_id" value="{{ ticket.id }}">
+                            <button type="submit" class="btn btn-danger btn-sm">Supprimer</button>
+                        </form>
+                    </div>
                 </li>
             {% endfor %}
         </ul>
+
+        <div class="mt-4">
+            <h4 class="text-center">Total du panier : {{ total_panier }}€</h4>
+        </div>
+
         <div class="mt-4 text-center">
             <a href="" class="btn btn-success">Validez votre panier</a>
         </div>

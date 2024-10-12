@@ -1,0 +1,20 @@
+{% extends 'base.html' %}
+
+{% block title %}Échec du Paiement{% endblock %}
+
+{% block content %}
+<div class="container my-5">
+    <h2 class="text-center text-danger">Échec du Paiement</h2>
+
+    <p class="text-center">Votre paiement n'a pas pu être validé. Veuillez réessayer.</p>
+
+    {% if transaction %}
+    <p class="text-center">Transaction ID : {{ transaction.transaction_id }}</p>
+    {% endif %}
+
+    <div class="text-center mt-4">
+        <a href="{% url 'payment' %}" class="btn btn-primary">Réessayer</a>
+        <a href="{% url 'home' %}" class="btn btn-secondary">Retour à l'accueil</a>
+    </div>
+</div>
+{% endblock %}

@@ -1,10 +1,34 @@
 {% extends 'base.html' %}
 
-{% block title %}Mon Profil{% endblock %}
+{% block title %}Mon Compte{% endblock %}
 
 {% block content %}
-<h1>Profil de {{ user.email }}</h1>
-<p>Nom : {{ user.get_full_name }}</p>
-<p>Email : {{ user.email }}</p>
-<!-- Tu peux ajouter plus d'informations selon tes besoins -->
+<div class="container my-5">
+    <h2 class="text-center mb-4">Mon Compte</h2>
+
+    <div class="row">
+        <div class="col-md-6">
+            <h4>Mes Informations</h4>
+            <p>Email : {{ request.user.email }}</p>
+            <p>Nom : {{ request.user.first_name }} {{ request.user.last_name }}</p>
+        </div>
+
+        <div class="col-md-6">
+            <h4>Mes Achats Précédents</h4>
+            {% if transactions %}
+                <ul class="list-group">
+                    {% for transaction in transactions %}
+                        <li class="list-group-item">
+                            <strong>{{ transaction.offer.name }}</strong> - {{ transaction.total_price }} €<br>
+                            Date : {{ transaction.transaction_date }}
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p>Vous n'avez pas encore effectué d'achats.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
 {% endblock %}
+

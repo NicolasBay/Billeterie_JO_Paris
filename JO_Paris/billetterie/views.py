@@ -8,16 +8,18 @@ import stripe
 from django.conf import settings
 from django.utils.decorators import method_decorator
 from django.utils.http import url_has_allowed_host_and_scheme
-from django.http import HttpResponse, HttpResponseRedirect
+from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.urls import reverse_lazy, reverse
 from django.views import View
 from django.views.generic import TemplateView, ListView, FormView
+from django.views.decorators.csrf import csrf_exempt
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from rest_framework.response import Response
 from rest_framework import status
 from .forms import SignupForm, AjouterAuPanierForm, CheckoutForm
 from .models import Ticket, Transaction
 import os
+import logging
 
 
 
@@ -191,12 +193,16 @@ class AjouterAuPanierView(FormView):
 
 
 
-class ProfilView(LoginRequiredMixin, View):
+class ProfilView(LoginRequiredMixin, TemplateView):
     template_name = 'billetterie/profil.html'
-    def get(self, request):
-        # Ici, je peux récupérer les données du profil (par exemple, depuis la session ou la base de données)
-        user = request.user
-        return render(request, self.template_name, {'user':user})
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        user = self.request.user
+        # Récupérer les transactions de l'utilisateur connecté
+        transactions = Transaction.objects.filter(user=user, payment_status='COMPLETED').order_by('-transaction_date')
+        context['transactions'] = transactions
+        return context
     
 
 
@@ -278,27 +284,39 @@ class CheckoutView(FormView):
             form.add_error('accept_cgv', "Vous devez accepter les Conditions Générales de Vente.")
             return self.form_invalid(form)
 
-        # Enregistrer l'adresse, le téléphone, etc. et rediriger vers l'API de paiement
-        return redirect(self.get_success_url())
+        # Enregistre les informations du formulaire dans la session
+        self.request.session['adresse'] = form.cleaned_data['adresse']
+        self.request.session['telephone'] = form.cleaned_data['telephone']
 
+        # Redirige vers la page de confirmation où le formulaire caché sera soumis via POST
+        return super().form_valid(form)
+    
     def get_success_url(self):
-        # Rediriger vers l'API de paiement (par exemple, Stripe ou PayPal)
-        # Vous pouvez rediriger ici vers une URL personnalisée pour l'API tierce
-        return reverse('payment')  # Rediriger vers la vue de paiement
+        # Retourner l'URL de la vue de paiement
+        return reverse('checkout')
 
-
+    
 
 class PaymentView(View):
-    def get(self, request, *args, **kwargs):
-        # Utilisation de Stripe ici
+    def post(self, request, *args, **kwargs):
         stripe.api_key = settings.STRIPE_SECRET_KEY
 
+        user = request.user
         panier = request.session.get('panier', {})
+        adresse = request.session.get('adresse')
+        telephone = request.session.get('telephone')
+
+        if not panier:
+            return HttpResponse("Votre panier est vide", status=400)
+        
         tickets = Ticket.objects.filter(id__in=panier.keys())
         line_items = []
+        total_price = 0
 
-        # Boucle sur les articles dans le panier pour configurer les éléments Stripe
+        # Configurer les articles Stripe pour le paiement
         for ticket in tickets:
+            quantity = panier[str(ticket.id)]
+            total_price += ticket.price * quantity
             line_items.append({
                 'price_data': {
                     'currency': 'eur',
@@ -307,17 +325,173 @@ class PaymentView(View):
                     },
                     'unit_amount': int(ticket.price * 100),  # En centimes
                 },
-                'quantity': panier[str(ticket.id)],
+                'quantity': quantity,  # Quantité pour chaque ticket
             })
 
-        # Création de la session de paiement Stripe
-        checkout_session = stripe.checkout.Session.create(
-            payment_method_types=['card'],
-            line_items=line_items,
-            mode='payment',
-            success_url=request.build_absolute_uri(reverse('payment_success')),
-            cancel_url=request.build_absolute_uri(reverse('payment_cancel')),
-        )
+        try:
+            # Création de la session de paiement Stripe
+            checkout_session = stripe.checkout.Session.create(
+                payment_method_types=['card'],
+                line_items=line_items,
+                mode='payment',
+                customer_email=user.email if user.is_authenticated else None,
+                success_url=request.build_absolute_uri(reverse('payment_success')) + '?session_id={CHECKOUT_SESSION_ID}',
+                cancel_url=request.build_absolute_uri(reverse('payment_cancel')) + '?session_id={CHECKOUT_SESSION_ID}',
+                metadata={
+                    'session_id': 'session_id_placeholder'  # Utilise un placeholder temporaire
+                }
+            )
+            # Remplace le placeholder par l'ID réel de la session Stripe une fois que la session est créée
+            stripe.checkout.Session.modify(
+                checkout_session.id,
+                metadata={
+                    'session_id': checkout_session.id  # Remplace par l'ID réel de la session
+                }
+            )
+        
+  
+  
+            # Enregistrer la transaction avec le total calculé dans la vue
+            transaction = Transaction.objects.create(
+                user=user,
+                quantity=sum(panier.values()),  # Quantité totale dans le panier
+                total_price=total_price,  # Prix total calculé ici dans la vue
+                payment_status='PENDING',
+                payment_method='Carte de crédit (fictive)',
+                transaction_id=checkout_session.id  # ID de la session Stripe
+            )
 
-        # Redirection vers Stripe
-        return redirect(checkout_session.url, code=303)
+            # Ajouter les tickets à la relation ManyToMany
+            transaction.offer.set(tickets)
+
+            # Redirection vers Stripe
+            return redirect(checkout_session.url, code=303)
+    
+        except stripe.error.StripeError as e:
+            return HttpResponse(f"Erreur Stripe : {str(e)}", status=500)
+        
+    def get(self, request, *args, **kwargs):
+        return HttpResponse("Accès à la page de paiement uniquement via POST.", status=405)
+
+
+
+class PaymentSuccessView(View):
+    def get(self, request, *args, **kwargs):
+        # Récupérer l'ID de la session Stripe pour retrouver la transaction
+        session_id = request.GET.get('session_id')  # Utilise 'session_id'
+        
+        if not session_id:
+            return HttpResponse("Stripe ID manquant", status=400)
+        
+        try:
+            # Utiliser transaction_id pour retrouver la transaction
+            transaction = Transaction.objects.get(transaction_id=session_id)
+        except Transaction.DoesNotExist:
+            return HttpResponse("Aucune transaction ne correspond à cet ID", status=404)
+
+        # Ne pas mettre à jour le statut ici, cela est géré par le webhook
+
+        # Réinitialiser le panier uniquement si la transaction est bien complétée
+        if transaction.payment_status == 'COMPLETED' and 'panier' in request.session:
+            del request.session['panier']
+
+        # Rendre le template de succès
+        return render(request, 'billetterie/payment_success.html', {'transaction': transaction})
+
+
+    
+
+class PaymentCancelView(View):
+    template_name = 'billetterie/payment_cancel.html'
+
+    def get(self, request, *args, **kwargs):
+        # Récupérer l'ID de la session Stripe pour identifier la transaction échouée
+        session_id = request.GET.get('session_id')  # Utilise 'session_id'
+        transaction = None
+        
+        if session_id:
+            try:
+                # Utiliser transaction_id pour retrouver la transaction
+                transaction = Transaction.objects.get(transaction_id=session_id)
+                # Ne pas mettre à jour le statut ici, cela est géré par le webhook
+            except Transaction.DoesNotExist:
+                transaction = None  # Si la transaction n'existe pas, reste sur None
+
+        context = {
+            'transaction': transaction
+        }
+
+        # Si transaction est None, ajouter un message d'erreur pour le template
+        if not transaction:
+            context['error'] = "Transaction non trouvée ou déjà échouée."
+
+        return render(request, self.template_name, context)
+
+
+
+
+logger = logging.getLogger(__name__)
+
+@method_decorator(csrf_exempt, name='dispatch')
+class StripeWebhookView(View):
+
+    def post(self, request, *args, **kwargs):
+        print("Entrée dans la vue StripeWebhookView")
+        endpoint_secret = settings.STRIPE_WEBHOOK_SECRET
+        payload = request.body
+        sig_header = request.META.get('HTTP_STRIPE_SIGNATURE')
+        event = None
+
+        try:
+            event = stripe.Webhook.construct_event(payload, sig_header, endpoint_secret)
+            print(f"Webhook reçu : {event['type']}")
+        except ValueError as e:
+            print(f"Payload invalide reçu : {e}")
+            return HttpResponse("Données du webhook invalides.", status=400)
+        except stripe.error.SignatureVerificationError as e:
+            print(f"Signature du webhook non valide : {e}")
+            return HttpResponse("Signature du webhook non valide.", status=400)
+
+        # Gérer l'événement checkout.session.completed
+        if event['type'] == 'checkout.session.completed':
+            print(f"Session de paiement complétée : {event['data']['object']['id']}")
+            session = event['data']['object']
+            session_id = session.get('id')
+
+            try:
+                # Mettre à jour la transaction dans la base de données
+                transaction = Transaction.objects.get(transaction_id=session_id)
+                transaction.payment_status = 'COMPLETED'  # Met à jour le statut comme payé
+                transaction.payment_intent = session.get('payment_intent')  # Récupère l'ID du Payment Intent
+                transaction.save()
+            except Transaction.DoesNotExist:
+                return HttpResponse("Transaction non trouvée.", status=404)
+
+        # Gérer l'événement payment_intent.payment_failed
+        elif event['type'] == 'payment_intent.payment_failed':
+            print(f"Échec du paiement pour le Payment Intent : {event['data']['object']['id']}")
+            intent = event['data']['object']
+            payment_intent_id = intent.get('id')
+            print(payment_intent_id)
+
+        # Récupérer le session_id depuis les metadata
+
+            metadata = intent.get('metadata')
+            session_id = metadata.get('session_id') if metadata else None
+            print(f"Metadata récupérées : {metadata}")
+            print(f"Session ID : {session_id}")
+
+            if session_id:
+                try:
+                    # Récupérer la transaction en utilisant l'ID de session
+                    transaction = Transaction.objects.get(transaction_id=session_id)
+                    transaction.payment_intent = payment_intent_id
+                    transaction.payment_status = 'FAILED'
+                    transaction.save()
+                    print(f"Transaction échouée mise à jour : {transaction}")
+                except Transaction.DoesNotExist:
+                    return HttpResponse("Transaction non trouvée.", status=404)
+            else:
+                return HttpResponse("Session ID non trouvé dans les metadata.", status=400)
+
+        return JsonResponse({'status': 'success'}, status=200)

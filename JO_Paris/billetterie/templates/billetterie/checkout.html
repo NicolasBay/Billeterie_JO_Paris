@@ -6,6 +6,7 @@
 <div class="container my-5">
     <h2 class="text-center mb-4">Validation de la commande</h2>
 
+    <!-- Afficher le récapitulatif de la commande -->
     <h4>Récapitulatif de votre commande</h4>
     <ul class="list-group mb-3">
         {% for ticket in tickets %}
@@ -21,11 +22,42 @@
 
     <h4>Total : {{ total_panier }} €</h4>
 
-    <form method="POST">
+    <!-- Saisie des informations (adresse, téléphone, etc.) -->
+    <form method="POST" action="{% url 'checkout' %}">
         {% csrf_token %}
         {{ form.as_p }}
 
+        <!-- Bouton pour finaliser le paiement -->
         <button type="submit" class="btn btn-success">Procéder au paiement</button>
     </form>
+
+    <!-- Bouton "Retourner au panier" -->
+    <div class="mt-4 text-center">
+        <a href="{% url 'panier' %}" class="btn btn-secondary">Retourner au panier</a>
+    </div>
+
+    <!-- Formulaire caché pour rediriger vers PaymentView via POST -->
+    <form id="payment-form" method="POST" action="{% url 'payment' %}">
+        {% csrf_token %}
+        <input type="hidden" name="adresse" value="{{ request.session.adresse }}">
+        <input type="hidden" name="telephone" value="{{ request.session.telephone }}">
+    </form>
+
+    <!-- Script pour soumettre automatiquement le formulaire caché -->
+    <script>
+        // Fonction pour soumettre automatiquement le formulaire caché après validation
+        document.addEventListener("DOMContentLoaded", function () {
+            const checkoutForm = document.querySelector("form[action='{% url 'checkout' %}']");
+            const paymentForm = document.getElementById("payment-form");
+
+            // Ajoute un écouteur d'événements pour soumettre le formulaire caché après validation
+            checkoutForm.addEventListener("submit", function (event) {
+                event.preventDefault();  // Empêche la soumission normale
+                // Soumission automatique du formulaire caché après validation
+                paymentForm.submit();  // Soumet le formulaire caché
+            });
+        });
+    </script>   
+
 </div>
 {% endblock %}

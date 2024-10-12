@@ -83,36 +83,36 @@ class Transaction(models.Model):
     ]
 
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
-    offer = models.ForeignKey('Ticket', on_delete=models.CASCADE)
+    offer = models.ManyToManyField(Ticket)
     quantity = models.PositiveIntegerField(default=1)
-    total_price = models.DecimalField(max_digits=8, decimal_places=2)
+    total_price = models.DecimalField(max_digits=8, decimal_places=2, default=0.00)
     transaction_date = models.DateTimeField(default=timezone.now)
     payment_status = models.CharField(max_length=10, choices=PAYMENT_STATUS_CHOICES, default='PENDING')
     payment_method = models.CharField(max_length=50)
-    transaction_id = models.CharField(max_length=100, unique=True, default=get_random_string)
-    confirmation_code = models.CharField(max_length=20, blank=True, null=True, unique=True)
+    transaction_id = models.CharField(max_length=100, unique=True) # ID de la session Stripe (unique pour chaque transaction)
+    payment_intent = models.CharField(max_length=100, blank=True, null=True) # ID du Payment Intent Stripe
+    confirmation_code = models.CharField(max_length=20, blank=True, null=True, unique=True) # Code de confirmation généré après la réussite du paiement
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"Transaction {self.transaction_id - self.user - self.total_price} €"
+        return f"Transaction {self.transaction_id} - {self.user.email} - {self.total_price} €"
     
     def generate_confirmation_code(self):
         # Génère un code de confirmation unique
         return get_random_string(10).upper()
     
     def save(self, *args, **kwargs):
-        # calcul du prix total en fonction de la quantité
-        self.total_price = self.quantity * self.offer.price
-        # Surcharge de la méthode save pour s'assurer que le code de confirmation est unique et généré si le paiement est complété.
+        # Générer un code de confirmation unique si le paiement est complété
         if self.payment_status == 'COMPLETED' and not self.confirmation_code:
             self.generate_confirmation_code = self.generate_unique_confirmation_code()
+        
         super().save(*args, **kwargs)
 
     def generate_unique_confirmation_code(self):
         # Génère un code de confirmation unique en vérifiant qu'il n'existe pas déjà en base de données
         while True:
             code = self.generate_confirmation_code()
-            if not Transaction.objects.filter(confirmation_code=code).exists ():
+            if not Transaction.objects.filter(confirmation_code=code).exists():
                 return code
 
     

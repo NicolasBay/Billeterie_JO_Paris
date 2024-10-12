@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+
+{% block title %}Paiement Réussi{% endblock %}
+
+{% block content %}
+<div class="container my-5">
+    <h2 class="text-center">Paiement réussi !</h2>
+    <p class="text-center">Merci pour votre commande. Votre paiement a été validé avec succès.</p>
+
+    <div class="text-center mt-4">
+        <a href="{% url 'home' %}" class="btn btn-primary">Retour à l'accueil</a>
+    </div>
+</div>
+{% endblock %}
+

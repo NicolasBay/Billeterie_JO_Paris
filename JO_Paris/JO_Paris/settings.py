@@ -12,6 +12,8 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 import os
 from pathlib import Path
 from django.contrib.messages import constants as messages
+from decouple import config
+import environ
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -20,10 +22,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-ws50n-n5h^$h5!*8bo981qc@(*ty7vh@zvf+%4m60kw@969=$5'
+SECRET_KEY = config('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = config('DEBUG', default=False, cast=bool)
 
 ALLOWED_HOSTS = ['127.0.0.1']
 
@@ -77,21 +79,20 @@ TEMPLATES = [
 WSGI_APPLICATION = 'JO_Paris.wsgi.application'
 
 
+# Initialiser la lecture des variables d'environnement
+env = environ.Env()
+
+# Lire le fichier .env
+environ.Env.read_env()
+
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'billetterie_jo_paris',
-        'USER':'root',
-        'PASSWORD':'Nic/414*',
-        'HOST': '127.0.0.1',
-        'PORT': '3306',
-        'OPTIONS': {
-            'init_command': "SET sql_mode= 'STRICT_TRANS_TABLES'",
-            'charset': 'utf8mb4',
-        }
+    'default': env.db(),
+    'OPTIONS': {
+        'init_command': "SET sql_mode= 'STRICT_TRANS_TABLES'",
+        'charset': 'utf8mb4',
     }
 }
 

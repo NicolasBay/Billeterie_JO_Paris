@@ -4,6 +4,8 @@ from django.contrib.auth import login, get_user_model, logout
 from django.contrib.auth.views import LoginView
 from django.contrib.auth.mixins import LoginRequiredMixin # garantit que la vue est protégée par la vérification de l'authentification
 from django.contrib.auth.decorators import login_required
+import stripe
+from django.conf import settings
 from django.utils.decorators import method_decorator
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.http import HttpResponse, HttpResponseRedirect
@@ -13,9 +15,10 @@ from django.views.generic import TemplateView, ListView, FormView
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from rest_framework.response import Response
 from rest_framework import status
-from .forms import SignupForm, AjouterAuPanierForm
+from .forms import SignupForm, AjouterAuPanierForm, CheckoutForm
 from .models import Ticket, Transaction
 import os
+
 
 
 class SignupView(View):
@@ -252,3 +255,69 @@ class BilletView(LoginRequiredMixin, ListView):
         # Si l'utilisateur est connecté, procéder normalement
         return super().get(request, *args, **kwargs)
     
+
+
+class CheckoutView(FormView):
+    template_name = 'billetterie/checkout.html'
+    form_class = CheckoutForm
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # Récupérer le panier depuis la session
+        panier = self.request.session.get('panier', {})
+        tickets = Ticket.objects.filter(id__in=panier.keys())
+        # Calculer le total du panier
+        total_panier = sum(ticket.price * panier[str(ticket.id)] for ticket in tickets)
+        context['tickets'] = tickets
+        context['total_panier'] = total_panier
+        return context
+
+    def form_valid(self, form):
+        # Vérifie que les CGV sont acceptées
+        if not form.cleaned_data['accept_cgv']:
+            form.add_error('accept_cgv', "Vous devez accepter les Conditions Générales de Vente.")
+            return self.form_invalid(form)
+
+        # Enregistrer l'adresse, le téléphone, etc. et rediriger vers l'API de paiement
+        return redirect(self.get_success_url())
+
+    def get_success_url(self):
+        # Rediriger vers l'API de paiement (par exemple, Stripe ou PayPal)
+        # Vous pouvez rediriger ici vers une URL personnalisée pour l'API tierce
+        return reverse('payment')  # Rediriger vers la vue de paiement
+
+
+
+class PaymentView(View):
+    def get(self, request, *args, **kwargs):
+        # Utilisation de Stripe ici
+        stripe.api_key = settings.STRIPE_SECRET_KEY
+
+        panier = request.session.get('panier', {})
+        tickets = Ticket.objects.filter(id__in=panier.keys())
+        line_items = []
+
+        # Boucle sur les articles dans le panier pour configurer les éléments Stripe
+        for ticket in tickets:
+            line_items.append({
+                'price_data': {
+                    'currency': 'eur',
+                    'product_data': {
+                        'name': ticket.get_name_display(),
+                    },
+                    'unit_amount': int(ticket.price * 100),  # En centimes
+                },
+                'quantity': panier[str(ticket.id)],
+            })
+
+        # Création de la session de paiement Stripe
+        checkout_session = stripe.checkout.Session.create(
+            payment_method_types=['card'],
+            line_items=line_items,
+            mode='payment',
+            success_url=request.build_absolute_uri(reverse('payment_success')),
+            cancel_url=request.build_absolute_uri(reverse('payment_cancel')),
+        )
+
+        # Redirection vers Stripe
+        return redirect(checkout_session.url, code=303)

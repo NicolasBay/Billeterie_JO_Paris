@@ -44,4 +44,10 @@ class AjouterAuPanierForm(forms.Form):
     quantity = forms.IntegerField(min_value=1, initial=1)
 
 
+class CheckoutForm(forms.Form):
+    address = forms.CharField(label="Adresse", max_length=255, widget=forms.TextInput(attrs={'class': 'form-control'}))
+    phone_number = forms.CharField(label="Numéro de téléphone", max_length=15, widget=forms.TextInput(attrs={'class': 'form-control'}))
+    accept_cgv = forms.BooleanField(label="J'accepte les Conditions Générales de Vente", required=True)
+
+
 

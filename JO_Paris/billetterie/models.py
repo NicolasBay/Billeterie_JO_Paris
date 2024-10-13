@@ -97,22 +97,6 @@ class Transaction(models.Model):
     def __str__(self):
         return f"Transaction {self.transaction_id} - {self.user.email} - {self.total_price} €"
     
-    def generate_confirmation_code(self):
-        # Génère un code de confirmation unique
-        return get_random_string(10).upper()
     
-    def save(self, *args, **kwargs):
-        # Générer un code de confirmation unique si le paiement est complété
-        if self.payment_status == 'COMPLETED' and not self.confirmation_code:
-            self.generate_confirmation_code = self.generate_unique_confirmation_code()
-        
-        super().save(*args, **kwargs)
-
-    def generate_unique_confirmation_code(self):
-        # Génère un code de confirmation unique en vérifiant qu'il n'existe pas déjà en base de données
-        while True:
-            code = self.generate_confirmation_code()
-            if not Transaction.objects.filter(confirmation_code=code).exists():
-                return code
 
     

@@ -1,25 +1,28 @@
-from django.shortcuts import render, redirect, get_object_or_404
+from datetime import datetime, timedelta
+from django.conf import settings
+from django.core.mail import EmailMessage
 from django.contrib import messages
 from django.contrib.auth import login, get_user_model, logout
 from django.contrib.auth.views import LoginView
 from django.contrib.auth.mixins import LoginRequiredMixin # garantit que la vue est protégée par la vérification de l'authentification
 from django.contrib.auth.decorators import login_required
-import stripe
-from django.conf import settings
+from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
+from django.shortcuts import render, redirect, get_object_or_404
+from django.template.loader import render_to_string
+from django.urls import reverse_lazy, reverse
+from django.utils.crypto import get_random_string # pour générer des chaînes de caractères aléatoires
 from django.utils.decorators import method_decorator
 from django.utils.http import url_has_allowed_host_and_scheme
-from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
-from django.urls import reverse_lazy, reverse
 from django.views import View
 from django.views.generic import TemplateView, ListView, FormView
 from django.views.decorators.csrf import csrf_exempt
+from io import BytesIO
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from rest_framework.response import Response
 from rest_framework import status
 from .forms import SignupForm, AjouterAuPanierForm, CheckoutForm
-from .models import Ticket, Transaction
-import os
-import logging
+from .models import Ticket, Transaction, Utilisateur
+import jwt, qrcode, logging, os, stripe
 
 
 
@@ -349,8 +352,6 @@ class PaymentView(View):
                 }
             )
         
-  
-  
             # Enregistrer la transaction avec le total calculé dans la vue
             transaction = Transaction.objects.create(
                 user=user,
@@ -386,10 +387,19 @@ class PaymentSuccessView(View):
         try:
             # Utiliser transaction_id pour retrouver la transaction
             transaction = Transaction.objects.get(transaction_id=session_id)
+            utilisateur = transaction.user # Récupérer l'utilisateur lié à la transaction
         except Transaction.DoesNotExist:
             return HttpResponse("Aucune transaction ne correspond à cet ID", status=404)
 
         # Ne pas mettre à jour le statut ici, cela est géré par le webhook
+
+        # Générer le jeton JWT et le QR code
+        jwt_token = self.generate_jwt(transaction.confirmation_code, utilisateur.unique_key)
+        qr_code_image = self.generate_qr_code(jwt_token)
+
+        # Envoyer l'email avec le billet
+        self.send_ticket_email(utilisateur, transaction, jwt_token, qr_code_image)
+        
 
         # Réinitialiser le panier uniquement si la transaction est bien complétée
         if transaction.payment_status == 'COMPLETED' and 'panier' in request.session:
@@ -397,6 +407,61 @@ class PaymentSuccessView(View):
 
         # Rendre le template de succès
         return render(request, 'billetterie/payment_success.html', {'transaction': transaction})
+    
+
+    # Méthodes pour QRcode et JWT
+    def generate_jwt(self, confirmation_code, unique_key):
+        # Crée un jeton JWT avec une durée de validité (ex. 1 jour)
+        payload = {
+            'confirmation_code': confirmation_code,
+            'unique_key': unique_key,
+            'exp': datetime.now() + timedelta(days=1),  # Expiration dans 1 jour
+            'iat': datetime.now()  # Date de génération
+        }
+
+        # Crée le jeton JWT
+        token = jwt.encode(payload, settings.SECRET_KEY, algorithm='HS256')
+        return token
+
+    def generate_qr_code(self, data):
+        qr = qrcode.QRCode(
+            version=1,
+            error_correction=qrcode.constants.ERROR_CORRECT_L,
+            box_size=10,
+            border=4,
+        )
+        qr.add_data(data)
+        qr.make(fit=True)
+
+        # Crée l'image du QR code
+        img = qr.make_image(fill='black', back_color='white')
+
+        # Convertir l'image en mémoire pour l'attacher à un email
+        buffer = BytesIO()
+        img.save(buffer, format="PNG")
+        buffer.seek(0)
+        
+        return buffer
+
+
+    # Envoi de l'email avec le billet
+    def send_ticket_email(self, utilisateur, transaction, jwt_token, qr_code_image):
+        subject = 'Votre billet pour l\'événement - JO Paris 2024'
+        body = render_to_string('billetterie/ticket_email.html', {
+            'user': utilisateur,
+            'confirmation_code': transaction.confirmation_code,
+            'unique_key': utilisateur.unique_key,
+            'jwt_token': jwt_token
+        })
+        
+        # Crée l'email avec l'image du QR code en pièce jointe
+        email = EmailMessage(subject, body, to=[utilisateur.email])
+        email.attach('ticket_qr_code.png', qr_code_image.getvalue(), 'image/png')
+        email.content_subtype = 'html'  # Envoyer le mail en HTML
+        email.send()
+
+
+        
 
 
     
@@ -463,7 +528,10 @@ class StripeWebhookView(View):
                 transaction = Transaction.objects.get(transaction_id=session_id)
                 transaction.payment_status = 'COMPLETED'  # Met à jour le statut comme payé
                 transaction.payment_intent = session.get('payment_intent')  # Récupère l'ID du Payment Intent
+                confirmation_code = self.generate_unique_confirmation_code()
+                transaction.confirmation_code = confirmation_code
                 transaction.save()
+                print(f"Transaction complétée : {transaction}")
             except Transaction.DoesNotExist:
                 return HttpResponse("Transaction non trouvée.", status=404)
 
@@ -474,8 +542,7 @@ class StripeWebhookView(View):
             payment_intent_id = intent.get('id')
             print(payment_intent_id)
 
-        # Récupérer le session_id depuis les metadata
-
+            # Récupérer le session_id depuis les metadata
             metadata = intent.get('metadata')
             session_id = metadata.get('session_id') if metadata else None
             print(f"Metadata récupérées : {metadata}")
@@ -495,3 +562,61 @@ class StripeWebhookView(View):
                 return HttpResponse("Session ID non trouvé dans les metadata.", status=400)
 
         return JsonResponse({'status': 'success'}, status=200)
+
+
+    def generate_confirmation_code(self):
+        """Génère un code de confirmation unique"""
+        return get_random_string(10).upper()
+
+    def generate_unique_confirmation_code(self):
+        """Génère un code unique et vérifie qu'il n'existe pas déjà"""
+        while True:
+            code = self.generate_confirmation_code()
+            if not Transaction.objects.filter(confirmation_code=code).exists():
+                return code
+            
+
+            
+
+
+
+# QRcode et JWT
+
+def generate_jwt(confirmation_code, unique_key):
+    # Crée un jeton JWT avec une durée de validité (ex. 1 jour)
+    payload = {
+        'confirmation_code': confirmation_code,
+        'unique_key': unique_key,
+        'exp': datetime.utcnow() + timedelta(days=1),  # Expiration dans 1 jour
+        'iat': datetime.utcnow()  # Date de génération
+    }
+
+    # Crée le jeton JWT
+    token = jwt.encode(payload, settings.SECRET_KEY, algorithm='HS256')
+    return token
+
+
+def generate_qr_code(data):
+    qr = qrcode.QRCode(
+        version=1,
+        error_correction=qrcode.constants.ERROR_CORRECT_L,
+        box_size=10,
+        border=4,
+    )
+    qr.add_data(data)
+    qr.make(fit=True)
+
+    # Crée l'image du QR code
+    img = qr.make_image(fill='black', back_color='white')
+
+    # Convertir l'image en mémoire pour l'attacher à un email
+    buffer = BytesIO()
+    img.save(buffer, format="PNG")
+    buffer.seek(0)
+    
+    return buffer
+
+
+
+
+

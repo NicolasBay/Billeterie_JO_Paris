@@ -1,29 +1,31 @@
 from datetime import datetime, timedelta
+from io import BytesIO
 from django.conf import settings
 from django.core.mail import EmailMessage
 from django.contrib import messages
-from django.contrib.auth import login, get_user_model, logout
+from django.contrib.auth import login, logout, get_user_model
 from django.contrib.auth.views import LoginView
-from django.contrib.auth.mixins import LoginRequiredMixin # garantit que la vue est protégée par la vérification de l'authentification
-from django.contrib.auth.decorators import login_required
-from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.http import HttpResponse, JsonResponse, HttpResponseRedirect
 from django.shortcuts import render, redirect, get_object_or_404
 from django.template.loader import render_to_string
 from django.urls import reverse_lazy, reverse
-from django.utils.crypto import get_random_string # pour générer des chaînes de caractères aléatoires
-from django.utils.decorators import method_decorator
+from django.utils.crypto import get_random_string
 from django.utils.http import url_has_allowed_host_and_scheme
+from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.generic import TemplateView, ListView, FormView
 from django.views.decorators.csrf import csrf_exempt
-from io import BytesIO
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from rest_framework.response import Response
 from rest_framework import status
+import jwt
+import qrcode
+import logging
+import stripe
+
 from .forms import SignupForm, AjouterAuPanierForm, CheckoutForm
 from .models import Ticket, Transaction, Utilisateur
-import jwt, qrcode, logging, os, stripe
-
 
 
 class SignupView(View):
@@ -82,15 +84,10 @@ class CustomLoginView(View):
             token_data = response.data
             request.session['access'] = token_data['access']
             request.session['refresh'] = token_data['refresh']
-            # messages.success(request, 'Vous êtes maintenant connecté.')
 
             next_url = request.GET.get('next')
-            if next_url:
-                return redirect(next_url)
-            else:
-                return redirect('billet')
-        else:
-            return render(request, self.template_name, {'error': 'Identifiants invalides'})
+            return redirect(next_url if next_url else 'billet')
+        return render(request, self.template_name, {'error': 'Identifiants invalides'})
         
     def get(self, request):
         return render(request, self.template_name)
@@ -135,14 +132,12 @@ class PanierView(ListView):
     def post(self, request, *args, **kwargs):
         """Gère les ajouts, mises à jour et suppressions dans le panier"""
         ticket_id = request.POST.get('ticket_id')
-        if not ticket_id:
-            return redirect('panier')  # Redirection si l'id est absent
-
         action = request.POST.get('action')
+        quantite = int(request.POST.get('quantite', 1))
+
         if action == 'supprimer':
             self.supprimer_du_panier(ticket_id)
         else:
-            quantite = int(request.POST.get('quantite', 1))  # Quantité par défaut à 1
             self.ajouter_ou_mettre_a_jour_panier(ticket_id, quantite)
 
         return redirect('panier')  # Redirige vers la page du panier après l'ajout ou la suppression
@@ -150,10 +145,7 @@ class PanierView(ListView):
     def ajouter_ou_mettre_a_jour_panier(self, ticket_id, quantite):
         """Ajoute ou met à jour un ticket dans le panier"""
         panier = self.request.session.get('panier', {})
-        if str(ticket_id) in panier:
-            panier[str(ticket_id)] += quantite  # Incrémente la quantité si déjà présent
-        else:
-            panier[str(ticket_id)] = quantite  # Ajoute le ticket avec la quantité
+        panier[str(ticket_id)] = panier.get(str(ticket_id), 0) + quantite
         self.request.session['panier'] = panier  # Met à jour le panier dans la session
 
     def supprimer_du_panier(self, ticket_id):
@@ -183,7 +175,6 @@ class AjouterAuPanierView(FormView):
     def form_valid(self, form):
         offer = get_object_or_404(Ticket, id=form.cleaned_data['offer_id'])
         quantity = form.cleaned_data['quantity']
-
         # Créer ou mettre à jour une transaction pour cet utilisateur
         transaction = Transaction.objects.create(
             user=self.request.user,
@@ -192,7 +183,8 @@ class AjouterAuPanierView(FormView):
             total_price=offer.price * quantity,
             payment_status='PENDING'
         )
-        return redirect(reverse('afficher_panier')) # Redirection vers la page du panier après ajout
+        # return redirect(reverse('afficher_panier')) # Redirection vers la page du panier après ajout
+        return redirect('panier')
 
 
 

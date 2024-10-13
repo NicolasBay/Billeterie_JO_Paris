@@ -3,9 +3,11 @@ from .views import SignupView, CustomTokenObtainPairView, CustomTokenRefreshView
 from .views import HomeView, CustomLoginView, PanierView, ProfilView, BilletView, LogoutView, CheckoutView
 from .views import PaymentView, PaymentSuccessView, PaymentCancelView, StripeWebhookView
 from django.contrib.auth.views import LogoutView
+from django.contrib import admin
 
 
 urlpatterns = [
+    path('gestion/', admin.site.urls),
     path('', HomeView.as_view(), name='home'),
     path('login/signup/', SignupView.as_view(), name='signup'), 
     path('login/', CustomLoginView.as_view(), name='login'),

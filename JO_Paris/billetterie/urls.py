@@ -7,7 +7,7 @@ from django.contrib import admin
 
 
 urlpatterns = [
-    path('gestion/', admin.site.urls),
+    path('gestion/', admin.site.urls, name='admin_billetterie'),
     path('', HomeView.as_view(), name='home'),
     path('login/signup/', SignupView.as_view(), name='signup'), 
     path('login/', CustomLoginView.as_view(), name='login'),

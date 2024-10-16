@@ -86,9 +86,16 @@ class CustomLoginView(View):
             request.session['refresh'] = token_data['refresh']
 
             next_url = request.GET.get('next')
-            return redirect(next_url if next_url else 'billet')
-        return render(request, self.template_name, {'error': 'Identifiants invalides'})
+            print(next_url)
+            # Vérifie si l'URL est autorisée et sûre
+            if next_url and url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}, require_https=request.is_secure()):
+                return redirect(next_url)
+            else:
+                return redirect('billet')
+        else:
+            return render(request, self.template_name, {'error': 'Identifiants invalides'})
         
+
     def get(self, request):
         return render(request, self.template_name)
         
@@ -361,7 +368,8 @@ class PaymentView(View):
             return redirect(checkout_session.url, code=303)
     
         except stripe.error.StripeError as e:
-            return HttpResponse(f"Erreur Stripe : {str(e)}", status=500)
+            logger.error(f"Erreur Stripe lors du paiement : {str(e)}")
+            return HttpResponse("Une erreur est survenue lors du traitement du paiement. Veuillez réessayer plus tard.", status=500)
         
     def get(self, request, *args, **kwargs):
         return HttpResponse("Accès à la page de paiement uniquement via POST.", status=405)
@@ -607,8 +615,3 @@ def generate_qr_code(data):
     buffer.seek(0)
     
     return buffer
-
-
-
-
-

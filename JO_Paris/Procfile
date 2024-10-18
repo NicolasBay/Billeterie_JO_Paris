@@ -1,1 +1,1 @@
-web: gunicorn billetterie_jo_paris.wsgi --log-file -
+web: gunicorn JO_Paris.wsgi --log-file -

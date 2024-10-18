@@ -85,6 +85,7 @@ WSGI_APPLICATION = 'JO_Paris.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 # Configurer la base de données à partir de DATABASE_URL
+
 DATABASES = {
     'default': config(
         'DATABASE_URL',
@@ -93,10 +94,10 @@ DATABASES = {
 }
 
 # Ajouter les options spécifiques pour MySQL
-DATABASES['default']['OPTIONS'] = {
-    'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
-    'charset': 'utf8mb4',
-}
+# DATABASES['default']['OPTIONS'] = {
+#     'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
+#     'charset': 'utf8mb4',
+# }
 
 
 # Indique que le modèle Utilisateur est le modèle d'utilisateur par défaut
@@ -190,3 +191,7 @@ STRIPE_WEBHOOK_SECRET = config('STRIPE_WEBHOOK_SECRET')
 
 # EMAILS
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+
+# MEDIA
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')

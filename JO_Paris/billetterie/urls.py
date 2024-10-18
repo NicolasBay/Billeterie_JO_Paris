@@ -4,6 +4,8 @@ from .views import HomeView, CustomLoginView, PanierView, ProfilView, BilletView
 from .views import PaymentView, PaymentSuccessView, PaymentCancelView, StripeWebhookView
 from django.contrib.auth.views import LogoutView
 from django.contrib import admin
+from django.conf import settings
+from django.conf.urls.static import static
 
 
 urlpatterns = [
@@ -21,4 +23,4 @@ urlpatterns = [
     path('payment-success/', PaymentSuccessView.as_view(), name='payment_success'),
     path('stripe-webhook/', StripeWebhookView.as_view(), name='stripe_webhook'),
     path('payment-cancel/', PaymentCancelView.as_view(), name='payment_cancel'),
-]
+] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

@@ -388,6 +388,7 @@ class PaymentSuccessView(View):
             # Utiliser transaction_id pour retrouver la transaction
             transaction = Transaction.objects.get(transaction_id=session_id)
             utilisateur = transaction.user # Récupérer l'utilisateur lié à la transaction
+            print(utilisateur)
         except Transaction.DoesNotExist:
             return HttpResponse("Aucune transaction ne correspond à cet ID", status=404)
 

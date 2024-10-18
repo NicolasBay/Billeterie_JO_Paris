@@ -10,12 +10,19 @@
             {% for ticket in tickets %}
             <div class="col-md-4">
                 <div class="card ticket-card text-center shadow-lg" style="height: 100%;">
+                    <!-- Visuel de l'offre -->
+                    {% if ticket.image %}
+                    <img src="{{ ticket.image.url }}" class="card-img-top" alt="Image de l'offre {{ ticket.get_name_display }}">
+                    {% endif %}
                     <div class="card-header fw-bold {% if ticket.name == 'SOLO' %}bg-solo text-success{% elif ticket.name == 'DUO' %}bg-duo text-primary{% elif ticket.name == 'FAMILLE' %}bg-famille text-warning{% endif %}">
                         {{ ticket.get_name_display }}
                     </div>
                     <div class="card-body d-flex flex-column justify-content-between">
                         <h5 class="card-title">{{ ticket.nb_person }} Personnes</h5>
-                        <p class="card-text">{{ ticket.description }}</p>
+                        <!-- Description rapide -->
+                        <p class="card-text">{{ ticket.short_description }}</p>
+                        <!-- Description détaillée visible au clic -->
+                        <p class="long-description">{{ ticket.long_description }}</p>
                         <p class="price h3 {% if ticket.name == 'SOLO' %}text-success{% elif ticket.name == 'DUO' %}text-primary{% elif ticket.name == 'FAMILLE' %}text-warning{% endif %}">
                             {{ ticket.price }}€
                         </p>

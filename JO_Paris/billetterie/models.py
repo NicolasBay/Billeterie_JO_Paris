@@ -62,12 +62,13 @@ class Ticket(models.Model):
     ]
 
     name = models.CharField(max_length=50, choices=OFFER_CHOICES, unique=True)
-    description = models.TextField()
+    description = models.CharField(max_length=100) 
     price = models.DecimalField(max_digits=6, decimal_places=2)
     nb_person = models.PositiveIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-
+    image = models.ImageField(upload_to='media/img/', null=True, blank=True)
+    
     def __str__(self):
         return f"{self.get_name_display()} - {self.price}"
 

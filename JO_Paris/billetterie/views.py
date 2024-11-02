@@ -237,11 +237,11 @@ class BilletView(LoginRequiredMixin, ListView):
         
         # Ajout du ticket au panier avec une quantité de 1 si pas encore dans le panier
         if str(ticket.id) in panier:    
-            messages.info(request, f"{ticket.nom} est déjà dans votre panier.")
+            messages.info(request, f"{ticket.name} est déjà dans votre panier.")
         else:
             panier[str(ticket.id)] = 1 # Par défaut, quantité=1 pur un nouvel ajout
             request.session['panier'] = panier
-            messages.success(request, f"{ticket.nom} a été ajouté au panier.")
+            messages.success(request, f"{ticket.name} a été ajouté au panier.")
 
         # Redirige vers le panier ou une autre page après l'ajout
         return redirect('panier')

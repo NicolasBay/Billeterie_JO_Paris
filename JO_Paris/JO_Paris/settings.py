@@ -31,6 +31,8 @@ DEBUG = config('DEBUG', default=False, cast=bool)
 # Configuration des hôtes autorisés
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='127.0.0.1', cast=Csv())
 
+# Origines approuvées pour CSRF
+CSRF_TRUSTED_ORIGINS = config('CSRF_TRUSTED_ORIGINS', cast=Csv())
 
 # Application definition
 
@@ -98,7 +100,7 @@ DATABASES = {
 
 import dj_database_url
 DATABASES = {
-    'default': dj_database_url.config(conn_max_age=600, ssl_require=True)
+    'default': dj_database_url.config(default=config('DATABASE_URL'), conn_max_age=600, ssl_require=False)
 }
 
 # Ajouter les options spécifiques pour MySQL
